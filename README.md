@@ -1,0 +1,1 @@
+# Afordness-qr-Generator
