@@ -218,32 +218,95 @@ function download(){
     alert('Generate QR first');
     return;
   }
-  const name = (document.getElementById('filename') && document.getElementById('filename').value) || 'afordness_qr';
-  const a = document.createElement('a');
-  a.href = canvas.toDataURL('image/png');
-  a.download = name + '.png';
-  a.click();
-}
+<script>
+/* state */
+const textEl = document.getElementById('text');
+const sizeEl = document.getElementById('size');
+const quietEl = document.getElementById('quiet');
+const colorEl = document.getElementById('color');
+const logoInput = document.getElementById('logo');
+const logosizeEl = document.getElementById('logosize');
+const logosizeLabel = document.getElementById('logosizeLabel');
+const previewWrap = document.getElementById('canvasWrap');
+const publicLinkEl = document.getElementById('publicLink');
 
-/* helpers */
-function roundRect(ctx, x, y, w, h, r){
-  if (w < 2*r) r = w/2;
-  if (h < 2*r) r = h/2;
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
+let logoImg = null;
 
-function isLikelyURL(s){
-  if(!s) return false;
-  return /^https?:\/\//i.test(s);
-}
-function escapeHtml(s){ return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+/* logo loader */
+logoInput.addEventListener('change', (e)=>{
+  const f = e.target.files && e.target.files[0];
+  if(!f){ logoImg = null; return; }
+  const url = URL.createObjectURL(f);
+  const img = new Image();
+  img.onload = ()=> { logoImg = img; URL.revokeObjectURL(url); };
+  img.src = url;
+});
 
+/* logo size label */
+logosizeEl.addEventListener('input', ()=>{
+  logosizeLabel.textContent = logosizeEl.value;
+});
+
+/* 🔥 GENERATE (AUTO PUBLIC LINK ADDED) */
+function generate(){
+  const raw = textEl.value.trim();
+  if(!raw){ alert('Please enter text'); return; }
+
+  // 🔗 AUTO PUBLIC LINK
+  const encoded = encodeURIComponent(raw);
+  const publicURL =
+    "https://itz-afnan-175.github.io/Afordness-qr/view.html?data=" + encoded;
+
+  publicLinkEl.value = publicURL;
+
+  const finalPx = parseInt(sizeEl.value,10) || 420;
+  const quietPx = parseInt(quietEl.value,10) || 20;
+  const color = colorEl.value || "#000";
+  const logoPercent = parseInt(logosizeEl.value,10)/100;
+
+  const qr = qrcode(0,'H');
+  qr.addData(publicURL);   // 🔥 IMPORTANT
+  qr.make();
+
+  const modules = qr.getModuleCount();
+  const scale = Math.floor((finalPx - quietPx*2) / modules);
+  const qrSize = modules * scale;
+  const canvasSize = qrSize + quietPx*2;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = canvasSize;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0,0,canvasSize,canvasSize);
+
+  for(let r=0;r<modules;r++){
+    for(let c=0;c<modules;c++){
+      ctx.fillStyle = qr.isDark(r,c) ? color : "#fff";
+      ctx.fillRect(
+        quietPx + c*scale,
+        quietPx + r*scale,
+        scale,
+        scale
+      );
+    }
+  }
+
+  // logo
+  if(logoImg){
+    const logoSize = qrSize * logoPercent;
+    const x = (canvasSize - logoSize)/2;
+    const y = (canvasSize - logoSize)/2;
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(x-6,y-6,logoSize+12,logoSize+12);
+    ctx.drawImage(logoImg,x,y,logoSize,logoSize);
+  }
+
+  previewWrap.innerHTML = "";
+  previewWrap.appendChild(canvas);
+  canvas.dataset.generated = "1";
+}
 </script>
 </body>
   </html>
